@@ -14,71 +14,92 @@ The Laptop Security App is a web application built with Flask that allows you to
 * **Ultrasonic Distance:** Tracks the distance of the laptop from a secure location.
 * **Security Status:** Automatically marks a laptop as 'stolen' if it is moved too far.
 
+---
+
 ## Installation
 
 ### Prerequisites
 
 * Python 3.8+
 * pip (Python package installer)
-* A running MySQL or SQLite database
+* A running PostgreSQL database
 
 ### Setup
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/arvndlr/laptop-security-app.git](https://github.com/arvndlr/laptop-security-application.git)
+    git clone [https://github.com/arvndlr/laptop-security-application.git](https://github.com/arvndlr/laptop-security-application.git)
     cd laptop-security-application
     ```
 
 2.  **Create and activate a virtual environment:**
     ```bash
     python3 -m venv venv
-    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+    source venv/bin/activate # On Windows, use `venv\Scripts\activate`
     ```
 
 3.  **Install dependencies:**
+    Before installing the app's dependencies, you may need to install `python3-dev` to build some of the required Python packages.
+
     ```bash
+    sudo apt update
+    sudo apt install python3-dev
     pip install -r requirements.txt
     ```
 
-4.  **Configure the database:**
-    Open the `config.py` file and update the `SQLALCHEMY_DATABASE_URI` to point to your database. For example:
-    ```python
-    # For MySQL
-    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://user:password@localhost/db_name'
-    # For SQLite (default)
-    # SQLALCHEMY_DATABASE_URI = 'sqlite:///app.db'
+---
+
+### 4. Setting up the PostgreSQL Database
+
+These steps will install PostgreSQL, create a dedicated user and database for your application, and configure the necessary permissions.
+
+1.  **Install PostgreSQL:**
+    ```bash
+    sudo apt install postgresql
     ```
 
-5.  **Initialize the database:**
+2.  **Access the PostgreSQL shell:**
+    ```bash
+    sudo -i -u postgres
+    ```
+
+3.  **Create a database user and database:**
+    Enter a password when prompted for the new user.
+    ```bash
+    createuser --pwprompt justine
+    createdb -O justine laptop_security_db
+    ```
+    **Note:** The `justine` username and `laptop_security_db` database name should match what's in your application's configuration.
+
+4.  **Grant permissions on the schema:**
+    Enter the `psql` command-line interface to grant permissions, then exit.
+    ```bash
+    psql -d laptop_security_db
+    ```
+    At the `psql` prompt, run:
+    ```sql
+    GRANT ALL PRIVILEGES ON SCHEMA public TO justine;
+    \q
+    ```
+
+5.  **Exit the `postgres` user shell:**
+    ```bash
+    exit
+    ```
+
+6.  **Update the `SQLALCHEMY_DATABASE_URI`:**
+    Open your `config.py` file and update the `SQLALCHEMY_DATABASE_URI` to use your new PostgreSQL database.
+    ```python
+    SQLALCHEMY_DATABASE_URI = 'postgresql://justine:your_password@localhost/laptop_security_db'
+    ```
+
+7.  **Initialize the database:**
     ```bash
     flask db upgrade
     ```
 
-6.  **Run the application:**
-    ```bash
-    flask run
-    ```
-    The application will be running at `http://127.0.0.1:5000`.
+---
 
-## Usage
-
-1.  **Register an account:** Create a new user account on the website.
-2.  **Add a new laptop:** Navigate to the "Add Laptop" page to register a laptop and associate it with a Holyiot iBeacon. The application will scan for nearby iBeacons and their RSSI values.
-3.  **Monitor your dashboard:** The main dashboard will show the status of all your registered laptops.
-4.  **Sending sensor data from a Raspberry Pi:** Your Raspberry Pi can send sensor data to the app's API endpoint.
-
-### API Endpoint
-
-The app provides an API endpoint for a Raspberry Pi sensor to post data:
-
-**Endpoint:** `POST /api/sensor_data`
-**URL:** `http://127.0.0.1:5000/api/sensor_data`
-**Headers:** `Content-Type: application/json`
-**Body:**
-```json
-{
-    "serial_number": "YOUR_LAPTOP_SERIAL",
-    "ibeacon_rssi": -65,
-    "ultrasonic_distance_cm": 50.2
-}
+### 5. Run the application:
+```bash
+flask run
