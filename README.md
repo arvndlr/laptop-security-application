@@ -102,4 +102,4 @@ These steps will install PostgreSQL, create a dedicated user and database for yo
 
 ### 5. Run the application:
 ```bash
-flask run
+python run.py
