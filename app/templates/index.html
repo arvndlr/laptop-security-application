@@ -1,0 +1,240 @@
+{% extends "base.html" %} {% block content %}
+
+<style>
+  body {
+    background-color: #121212;
+    color: #e0e0e0;
+  }
+
+  .lead {
+    color: #bdbdbd;
+  }
+
+  .card {
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    border: 1px solid #333;
+  }
+
+  .card-title,
+  .card-subtitle {
+    color: #e0e0e0 !important;
+  }
+
+  .card-subtitle {
+    color: #9e9e9e !important;
+  }
+
+  .card-footer {
+    background-color: #2c2c2c;
+    border-top: 1px solid #333;
+  }
+
+  .text-muted {
+    color: #9e9e9e !important;
+  }
+
+  .alert-info {
+    background-color: #212121;
+    color: #bbdefb;
+    border-color: #1976d2;
+  }
+
+  .alert-link {
+    color: #64b5f6;
+  }
+
+  hr {
+    border-color: #424242;
+  }
+</style>
+
+<h1 class="mt-5">Welcome, {{ current_user.username }}!</h1>
+<p class="lead">Your Dashboard</p>
+<div class="d-flex justify-content-between align-items-center mt-4 mb-4">
+  <h3>Connected Laptops</h3>
+  <button id="toggleSensorScript" class="btn">
+    <i class="bi bi-play-circle me-2"></i> Secure Laptops
+  </button>
+</div>
+{% if laptops %}
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mt-3">
+  {% for laptop in laptops %} {% set last_reading =
+  laptop.readings.order_by(db.desc(SensorReading.timestamp)).first() %}
+  <div class="col">
+    <div class="card h-100 shadow laptop-card" data-laptop-id="{{ laptop.id }}">
+      <div class="card-body">
+        <h5 class="card-title d-flex align-items-center">
+          {% if laptop.is_stolen %}
+          <i class="bi bi-laptop fs-4 text-danger me-2"></i>
+          {% else %}
+          <i class="bi bi-laptop fs-4 text-success me-2"></i>
+          {% endif %} {{ laptop.name }}
+        </h5>
+        <h6 class="card-subtitle mb-2 text-muted">
+          Serial: {{ laptop.serial_number }}
+        </h6>
+        <p class="card-text">
+          <strong>Status:</strong>
+          {% if laptop.is_stolen %}
+          <span class="badge bg-danger">Stolen</span>
+          {% else %}
+          <span class="badge bg-success">Secure</span>
+          {% endif %}
+        </p>
+        <hr />
+        <p class="card-text">
+          <strong>iBeacon:</strong>
+          {% if laptop.ibeacon_uuid %}
+          <br />UUID: `{{ laptop.ibeacon_uuid }}` <br />Major: `{{
+          laptop.ibeacon_major }}` <br />Minor: `{{ laptop.ibeacon_minor }}`<br />MAC:
+          `{{ laptop.ibeacon_mac_address }}` {% if last_reading %} <br /><span
+            class="live-rssi"
+            >RSSI: `{{ last_reading.ibeacon_rssi }}`</span
+          >
+          {% else %}
+          <br /><span class="live-rssi">RSSI: N/A</span>
+          {% endif %} {% else %}
+          <br />No iBeacon data found. {% endif %}
+        </p>
+      </div>
+      <div
+        class="card-footer d-flex justify-content-between align-items-center"
+      >
+        <small class="text-muted live-timestamp">
+          Last seen: {{ last_reading.timestamp.strftime('%Y-%m-%d %H:%M:%S') if
+          last_reading else 'N/A' }}
+        </small>
+        <div class="d-flex gap-2">
+          <form
+            action="{{ url_for('delete_laptop', laptop_id=laptop.id) }}"
+            method="post"
+            onsubmit="return confirm('Are you sure you want to delete this laptop?');"
+          >
+            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+          </form>
+          <a
+            href="{{ url_for('laptop_details', laptop_id=laptop.id) }}"
+            class="btn btn-sm btn-outline-primary"
+            >Details</a
+          >
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info mt-4" role="alert">
+  You haven't added any laptops yet.
+  <a href="{{ url_for('add_laptop') }}" class="alert-link">Add one now!</a>
+</div>
+{% endif %}
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // --- Code for the laptop status cards ---
+    const laptopCards = document.querySelectorAll(".laptop-card");
+
+    laptopCards.forEach((card) => {
+      const laptopId = card.dataset.laptopId;
+      if (laptopId) {
+        const updateData = () => {
+          fetch(`/api/laptop_status/${laptopId}`)
+            .then((response) => response.json())
+            .then((data) => {
+              if (data) {
+                const cardTitleIcon = card.querySelector(".card-title i");
+                const statusBadge = card.querySelector(".card-text .badge");
+
+                if (data.is_stolen) {
+                  cardTitleIcon.classList.remove("text-success");
+                  cardTitleIcon.classList.add("text-danger");
+                  statusBadge.classList.remove("bg-success");
+                  statusBadge.classList.add("bg-danger");
+                  statusBadge.textContent = "Stolen";
+                } else {
+                  cardTitleIcon.classList.remove("text-danger");
+                  cardTitleIcon.classList.add("text-success");
+                  statusBadge.classList.remove("bg-danger");
+                  statusBadge.classList.add("bg-success");
+                  statusBadge.textContent = "Secure";
+                }
+
+                const rssiElement = card.querySelector(".live-rssi");
+                const timestampElement = card.querySelector(".live-timestamp");
+
+                if (data.last_rssi) {
+                  rssiElement.textContent = `RSSI: ${data.last_rssi}`;
+                } else {
+                  rssiElement.textContent = `RSSI: N/A`;
+                }
+
+                if (data.last_seen) {
+                  timestampElement.textContent = `Last seen: ${data.last_seen}`;
+                } else {
+                  timestampElement.textContent = `Last seen: N/A`;
+                }
+              }
+            })
+            .catch((error) => console.error("Error fetching data:", error));
+        };
+        updateData();
+        setInterval(updateData, 1000); // Poll every 1 second
+      }
+    });
+
+    // --- Code for the sensor script toggle button ---
+    const toggleButton = document.getElementById("toggleSensorScript");
+    const icon = toggleButton.querySelector("i");
+    let isScriptRunning =
+      "{{ 'true' if is_script_running else 'false' }}" === "true";
+
+    function updateButtonStatus(isRunning) {
+      if (isRunning) {
+        toggleButton.classList.remove("btn-success");
+        toggleButton.classList.add("btn-danger");
+        icon.classList.remove("bi-play-circle");
+        icon.classList.add("bi-stop-circle");
+        toggleButton.innerHTML =
+          '<i class="bi bi-stop-circle me-2"></i> Turnoff Security';
+      } else {
+        toggleButton.classList.remove("btn-danger");
+        toggleButton.classList.add("btn-success");
+        icon.classList.remove("bi-stop-circle");
+        icon.classList.add("bi-play-circle");
+        toggleButton.innerHTML =
+          '<i class="bi bi-play-circle me-2"></i> Secure Laptop';
+      }
+    }
+
+    updateButtonStatus(isScriptRunning);
+
+    if (toggleButton) {
+      toggleButton.addEventListener("click", function () {
+        const action = isScriptRunning ? "stop" : "start";
+
+        fetch("/toggle_sensor_script", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: `action=${action}`,
+        })
+          .then((response) => {
+            if (response.ok) {
+              isScriptRunning = !isScriptRunning;
+              updateButtonStatus(isScriptRunning);
+            } else {
+              console.error("Failed to toggle script.");
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
+      });
+    }
+  });
+</script>
+
+{% endblock %}
