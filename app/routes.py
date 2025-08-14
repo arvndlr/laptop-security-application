@@ -10,6 +10,7 @@ import asyncio
 import subprocess
 import os
 import sys
+import pytz
 
 # Global variable to hold the script's process object
 sensor_script_process = None
@@ -284,7 +285,14 @@ def log_event():
     if not serial_number or not event_type:
         return jsonify({"error": "Missing serial_number or event_type"}), 400
     
-    log = Log(serial_number=serial_number, event_type=event_type)
+    # Define your local timezone
+    local_timezone = pytz.timezone('Asia/Manila')
+    
+    # Get the current time and localize it
+    local_now = datetime.now(local_timezone)
+    
+    # Create the log entry with the local timestamp
+    log = Log(serial_number=serial_number, event_type=event_type, timestamp=local_now)
     db.session.add(log)
     db.session.commit()
     

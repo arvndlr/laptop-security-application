@@ -28,6 +28,8 @@ ULTRASONIC_SENSOR_TO_LAPTOP_MAP = {}
 MIN_DISTANCE_CM = 5.0
 
 # Arduino Serial Port Configuration
+SERIAL_PORT = "/dev/ttyUSB0"   # change if your Arduino is on a different port
+SERIAL_BAUDRATE = 9600
 # --- BUZZER CONFIGURATION ---
 BUZZER_PIN = 18
 GPIO.setmode(GPIO.BCM)
